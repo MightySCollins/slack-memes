@@ -1,6 +1,5 @@
-import os
 from random import randint
-import json
+import time
 import sqlite3
 
 from flask import Flask, jsonify, g, request
@@ -50,6 +49,14 @@ def latest():
         query_db("SELECT * FROM messages ORDER BY ts DESC LIMIT 1", one=True))
 
 
+@app.route('/board/random')
+def random():
+    total = query_db("SELECT count(*) FROM messages", one=True)
+    id = randint(1, total[0])
+    meme = query_db("SELECT * FROM messages WHERE id = ?", [id], one=True)
+    return meme[2]
+
+
 @app.route('/slack/event')
 def event():
     event = request.get_json()
@@ -59,6 +66,17 @@ def event():
                  [message['channel'], message['user'], message['text'],
                   message['ts']])
         update_user(message['user'])
+
+
+@app.route('/slack/meme')
+def meme():
+    if request.form['token'] != 'token':
+        return 'Invalid token'
+
+    query_db("INSERT INTO messages VALUES (NULL, ?, ?, ?, ?)",
+             [request.form['channel_id'], request.form['user_id'], request.form['text'],
+              int(time.time())])
+    return 'Your meme has been saved'
 
 
 if __name__ == '__main__':
